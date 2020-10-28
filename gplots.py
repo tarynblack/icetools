@@ -364,11 +364,11 @@ def annualObservations(fig, all_glaciers, years_list, show_firstyear=True, \
         # xticklabs.append(name)
         gid = glacier.gid
         obs_years = glacier.extract('hydroyear')
-        missing_years = glacier.getMissingYears(years_list)
+        interp_years = glacier.interpyears
 
         graph1 = ax.scatter([gid]*len(obs_years), obs_years, \
             color='mediumblue')
-        graph2 = ax.scatter([gid]*len(missing_years), missing_years, \
+        graph2 = ax.scatter([gid]*len(interp_years), interp_years, \
             edgecolors='gray', facecolors='none')
 
         figureProperties(fig, ax, graph1)

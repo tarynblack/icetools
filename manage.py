@@ -43,7 +43,6 @@ class Glacier:
       
     def getMissingYears(self, year_list):
         """Identify years with missing data for an attribute"""
-        observed_data = self.extract('area')
         observed_hydroyears = self.extract('hydroyear')
         missing_years = list(set(year_list) - set(observed_hydroyears))
         return missing_years
@@ -55,17 +54,19 @@ class Glacier:
         missing_years = self.getMissingYears(year_list)
         missing_data = pd.DataFrame(data={attr: None}, \
                                     index=missing_years)
-        interpolated_data = observations.append(missing_data, \
-            verify_integrity=True, sort=True).sort_index()
+        interpolated_data = observations.append(missing_data, sort=True).sort_index()
         interpolated_data = interpolated_data.interpolate(method='linear', \
             limit_direction='forward')
-        interpolated_years_index = interpolated_data.index
-        interpolated_years = list(
-            set(interpolated_years_index) - set(missing_years))
-        return interpolated_data, interpolated_years
+        return interpolated_data
 
-    def getInterpolatedYears(self):
+    def getInterpolatedYears(self, attr, year_list):
         """Identify years in which data have been interpolated."""
+        interpolated_data = self.interpolateMeasurements(attr, year_list)
+        interpolated_years_index = interpolated_data.dropna().index
+        observed_years = self.hydroyears
+        interpolated_years = list(
+            set(interpolated_years_index) - set(observed_years))
+        return interpolated_years
 
 class TerminusObservation:
     def __init__(self, gid, qflag, termination, imageid, sensor, date, circadiandate, year, season, geometry):
