@@ -17,9 +17,11 @@ class Glacier:
         self.unofficialname = ""
         self.obsseries = []
         self.areas = []
+        self.widths = []
         self.termareas = []
         self.lengths = []
         self.dates = []
+        self.seasons = []
         self.hydroyears = []
         self.missingyears = []
         self.interpyears = []
@@ -69,7 +71,7 @@ class Glacier:
         return interpolated_years
 
 class TerminusObservation:
-    def __init__(self, gid, qflag, termination, imageid, sensor, date, circadiandate, year, season, geometry):
+    def __init__(self, gid, qflag, termination, imageid, sensor, date, circadiandate, year, geometry):
         # Attributes that must be defined on instantiation
         self.gid = gid
         self.qflag = qflag
@@ -79,16 +81,17 @@ class TerminusObservation:
         self.date = pd.to_datetime(date)
         self.circadiandate = circadiandate
         self.year = year
-        self.season = season
+        self.season = getSeason(self.date)
         self.geometry = geometry
         # Attributes that are determined from initial instance attributes
         self.hydroyear = hydrologicalYear(self.date)
         self.dayofhydroyear = dayOfHydroyear(self.date)
         # Attributes that are calculated elsewhere...
         self.area = 0.0
+        self.width = 0.0
+        self.length = 0.0
         self.termarea = 0.0
         self.centerlineintersection = Point()
-        self.length = 0.0
 
 
 def shp2gdf(file, epsg=3574):
@@ -133,4 +136,19 @@ def dayOfHydroyear(date):
         start_hydroyear = pd.to_datetime('%s-09-01' % str(hydroyear))
         day_of_hydroyear = (date - start_hydroyear).days
         return day_of_hydroyear
+
+
+def getSeason(date):
+    """Determine Northern Hemisphere season based on date."""
+    date = pd.to_datetime(date)
+    month = date.month
+    if month in [3, 4, 5]:
+        season = 'spring'
+    elif month in [6, 7, 8]:
+        season = 'summer'
+    elif month in [9, 10, 11]:
+        season = 'autumn'
+    elif month in [12, 1, 2]:
+        season = 'winter'
+    return season
 

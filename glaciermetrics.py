@@ -3,14 +3,14 @@
 # Taryn Black, August 2020
 
 import pandas as pd
-from shapely.ops import polygonize_full, split
+from shapely import ops
 import gplots as gp
 
 
 def glacierArea(terminus, box):
     """Calculate the area of the polygon created by the intersection of a glacier terminus and the glacier's reference box. The default area for EPSG:3574 is in m2; this script returns in km2."""
     outline = terminus.geometry.union(box)
-    gpoly = polygonize_full(outline)[0]
+    gpoly = ops.polygonize_full(outline)[0]
     if gpoly.is_empty:
         print("%s: Glacier %s trace and box do not overlap" % (terminus.date, terminus.gid))
     area_km = gpoly.area / 10**6
@@ -18,11 +18,32 @@ def glacierArea(terminus, box):
 
 
 def centerlineIntersection(terminus, centerline):
-    """Locate intersection between a glacier outline observation and glacier centerline geometry. Split the centerline at the intersection and calculate the length of the substring. Return intersection point and substring length (in km)."""
+    """Locate intersection between a glacier outline observation and glacier centerline geometry. Split the centerline at the intersection and calculate the length of the substring. Return intersection point and substring length."""
     intersection_point = centerline.intersection(terminus.geometry)
-    split_centerline = split(centerline, terminus.geometry)
-    substring_length = split_centerline[0].length / 10**3
+    split_centerline = ops.split(centerline, terminus.geometry)
+    substring_length = split_centerline[0].length
     return intersection_point, substring_length
+
+
+def terminusWidth(terminus, box):
+    """Compute box width at points where terminus intersects box, and return average width in km."""
+    terminus = terminus.geometry
+    if box.geom_type == 'MultiLineString':
+        box = ops.linemerge(ops.MultiLineString(box))
+    else:
+        box = ops.LineString(box)
+    # Split box into two halves
+    half1 = ops.substring(box, 0, 0.5, normalized=True)
+    half2 = ops.substring(box, 0.5, 1, normalized=True)
+    # Get terminus intersections with box halves
+    tx1 = terminus.intersection(half1)
+    tx2 = terminus.intersection(half2)
+    # Get distance from intersection point to other half
+    tx1_dist = tx1.distance(half2)
+    tx2_dist = tx2.distance(half1)
+    # Get average distance across box, i.e. average terminus width
+    average_width = (tx1_dist + tx2_dist) / 2 / 10**3
+    return average_width
 
 
 def addDecade(start_date):
