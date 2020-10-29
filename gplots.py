@@ -96,9 +96,13 @@ def manageSubplots(fig, subplot_bool, idx):
 
 def getGlacierName(GlacierClass):
     if GlacierClass.officialname:
-        name = GlacierClass.officialname
+        name = '{} (#{})'.format(GlacierClass.officialname, GlacierClass.gid)
+    elif GlacierClass.greenlandicname:
+        name = '{} (#{})'.format(GlacierClass.greenlandicname, GlacierClass.gid)
+    elif GlacierClass.alternativename:
+        name = '{} (#{})'.format(GlacierClass.alternativename, GlacierClass.gid)
     else:
-        name = GlacierClass.unofficialname
+        name = 'Glacier #{}'.format(GlacierClass.gid)
     return name
 
 
@@ -356,19 +360,14 @@ def seasonMeasureChange(fig, glacier, measure, \
 def annualObservations(fig, all_glaciers, years_list, show_firstyear=True, \
     subplots=False, idx=111):
     ax = manageSubplots(fig, subplots, idx)
-    # xticklabs = []
 
     for g in all_glaciers:
         glacier = all_glaciers[g]
-        # name = getGlacierName(glacier)
-        # xticklabs.append(name)
         gid = glacier.gid
         obs_years = glacier.extract('hydroyear')
-        interp_years = glacier.interpyears
 
-        graph1 = ax.scatter([gid]*len(obs_years), obs_years, \
-            color='mediumblue')
-        graph2 = ax.scatter([gid]*len(interp_years), interp_years, \
+        graph1 = plt.scatter([gid]*len(obs_years), obs_years, c=glacier.dayofhydroyear, cmap='viridis')
+        graph2 = plt.scatter([gid]*len(glacier.interpyears), glacier.interpyears, \
             edgecolors='gray', facecolors='none')
 
         figureProperties(fig, ax, graph1)
@@ -380,15 +379,19 @@ def annualObservations(fig, all_glaciers, years_list, show_firstyear=True, \
     ax.set_title('Observation Time Series for Each Glacier')
     ax.set_ylabel('Hydrological Year')
     ax.set_xlabel('Glacier ID')
-    # ax.legend()
-    # xticklocs = range(1, len(all_glaciers)+1)
-    # plt.xticks(xticklocs, xticklabs)
-    # plt.xlim(left=0)
     plt.ylim(bottom=years_list[0]-1, top=years_list[-1]+1)
 
+    # Add colorbar with both numerical and season labels
+    cbar = plt.colorbar(graph1, label='Day of hydrological year', \
+        values=list(range(0, 366)))
+    tick_locator = matplotlib.ticker.LinearLocator(numticks=9)
+    cbar.locator = tick_locator
+    cbar.update_ticks()
+    # cbar.ax.set_yticks([45, 136, 228, 316])#[0, 91, 181, 273])
+    cbar.ax.set_yticklabels(['', 'Autumn', '', 'Winter', '', 'Spring', '', 'Summer', ''], rotation=90, verticalalignment='center')
+    
     figureProperties(fig, ax, graph1)
     figureProperties(fig, ax, graph2)
-
 
 
 def measureSummary(fig, all_glaciers, measure, subplots=False, idx=111):
