@@ -113,7 +113,7 @@ def getSeasonMeasures(dates, measures, seasons, seasonstr):
 
 
 def check_measure(measure):
-    measure_types = ['length', 'area']
+    measure_types = ['length', 'area', 'termarea', 'interplength', 'interparea', 'interptermarea']
     if measure not in measure_types:
         raise ValueError("Invalid measure type. Expected one of: {}".format(
             measure_types))
@@ -394,7 +394,7 @@ def annualObservations(fig, all_glaciers, years_list, show_firstyear=True, \
     figureProperties(fig, ax, graph2)
 
 
-def measureSummary(fig, all_glaciers, measure, subplots=False, idx=111):
+def measureSummary(fig, all_glaciers, measure, years_list, subplots=False, idx=111):
     check_measure(measure)
 
     ax = manageSubplots(fig, subplots, idx)
@@ -402,22 +402,19 @@ def measureSummary(fig, all_glaciers, measure, subplots=False, idx=111):
     for g in all_glaciers:
         glacier = all_glaciers[g]
         dates = glacier.extract('date')
+        # years = glacier.getDataYears(measure, years_list)
         cumul_measures, _, _ = gm.netMeasureChange(glacier, measure)
-        name = getGlacierName(glacier)
-        graph, = ax.plot(dates, cumul_measures,
-            glacier_design[g]['s'], color=glacier_design[g]['c'],
-            label=name)
+        graph, = ax.plot(dates, cumul_measures, color='dodgerblue')
         figureProperties(fig, ax, graph)
     
-    ax.set_title('Summary of Observed {} Changes'.format(measure.capitalize()))
-    ax.set_xlabel('Date')
+    ax.set_title('Summary of {} Changes'.format(measure.capitalize()))
+    ax.set_xlabel('Hydrological Year')
     ax.set_ylabel('Cumulative {} Change ({})'.format(
         measure.capitalize(), measure_units[measure]))
-    ax.legend(loc='center left', bbox_to_anchor=(1.04, 0.5))
     figureProperties(fig, ax, graph)
 
 
-def normMeasureSummary(fig, all_glaciers, measure, subplots=False, idx=111):
+def normMeasureSummary(fig, all_glaciers, measure, years_list, subplots=False, idx=111):
     check_measure(measure)
 
     ax = manageSubplots(fig, subplots, idx)
@@ -425,17 +422,14 @@ def normMeasureSummary(fig, all_glaciers, measure, subplots=False, idx=111):
     for g in all_glaciers:
         glacier = all_glaciers[g]
         dates = glacier.extract('date')
+        # years = glacier.getDataYears(measure, years_list)
         scaled_measure = gm.normMeasureChange(glacier, measure)
-        name = getGlacierName(glacier)
-        graph, = ax.plot(dates, scaled_measure,
-            glacier_design[g]['s'], color=glacier_design[g]['c'],
-            label=name)
+        graph, = ax.plot(dates, scaled_measure, color='dodgerblue')
         figureProperties(fig, ax, graph)
     
-    ax.set_title('Summary of Observed {} Changes, Normalized'.format(
+    ax.set_title('Summary of {} Changes, Normalized'.format(
         measure.capitalize()))
-    ax.set_xlabel('Date')
+    ax.set_xlabel('Hydrological Year')
     ax.set_ylabel('Scaled Cumulative {} Change'.format(measure.capitalize()))
     plt.ylim(-0.02, 1.02)
-    # ax.legend(loc='center left', bbox_to_anchor=(1.04, 0.5))
     figureProperties(fig, ax, graph)

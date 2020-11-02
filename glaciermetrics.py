@@ -55,17 +55,16 @@ def addDecade(start_date):
 
 def filterByDates(glacier, measure, date_start, date_end):
     measures = glacier.extract(measure)
-    dates = glacier.extract('date')
 
     # Filter to data between selected dates
     if date_start:
         date_start = pd.to_datetime(date_start)
-        measures = measures.where(dates >= date_start).dropna()
-        dates = dates.where(dates >= date_start).dropna()
+        measures = measures.where(glacier.dates >= date_start).dropna()
+        dates = dates.where(glacier.dates >= date_start).dropna()
     if date_end: 
         date_end = pd.to_datetime(date_end)
-        measures = measures.where(dates <= date_end).dropna()
-        dates = dates.where(dates <= date_end).dropna()
+        measures = measures.where(glacier.dates <= date_end).dropna()
+        dates = dates.where(glacier.dates <= date_end).dropna()
     return measures, dates
 
 
