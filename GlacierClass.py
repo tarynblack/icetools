@@ -3,6 +3,7 @@
 import geopandas as gpd
 import pandas as pd
 from shapely.geometry import LineString, Point
+from shapely import ops
 
 
 class Glacier:
@@ -215,7 +216,8 @@ class Glacier:
         return scaled_attr, scaled_dates
 
 class TerminusObservation:
-    def __init__(self, gid, qflag, termination, imageid, sensor, date, geometry):
+    def __init__(self, gid, qflag, termination, imageid, sensor, date, \
+        terminus, referencebox):
         # Attributes that must be defined on instantiation
         self.gid = gid
         self.qflag = qflag
@@ -223,19 +225,23 @@ class TerminusObservation:
         self.imageid = imageid
         self.sensor = sensor
         self.date = pd.to_datetime(date)
-        self.geometry = geometry
+        self.terminus = terminus
+        self.referencebox = referencebox
+        # Optional additional attributes
+        # self.centerline = LineString()
         # Attributes that are determined from initial instance attributes
         self.year = self.date.year
         self.hydroyear = self.getHydrologicalYear(self.date)
         self.season = self.getSeason(self.date)
         self.dayofyear = self.getDayOfYear(self.date, '01-01')
         self.dayofhydroyear = self.getDayOfYear(self.date, '09-01')
-        # Attributes that are calculated elsewhere...
-        self.area = 0.0
-        self.width = 0.0
-        self.length = 0.0
+        # Derived values
+        self.area = self.getArea()
+        self.width = self.getTerminusWidth()
+        self.length = self.area / self.width
         self.termarea = 0.0
-        self.centerlineintersection = Point()
+        # self.centerlineintersection = self.getCenterlineIntersection()
+        # self.centerlinelength = self.getCenterlineLength()
     
     def getHydrologicalYear(self, date):
         """Determine hydrological year of a given date. Greenland hydrological year
@@ -272,48 +278,64 @@ class TerminusObservation:
                 startdate = pd.to_datetime(str(self.date.year - 1)+'-'+startMMDD)
             dayofyear = (date - startdate).days
         return dayofyear
-        
+
+    def getArea(self):
+        """Calculate glacier area (in km2) relative to reference box."""
+        outline = self.terminus.union(self.referencebox)
+        glacierpoly = ops.polygonize_full(outline)[0]
+        if glacierpoly.is_empty:
+            print('{}: Glacier {} trace and box do not overlap'.format(
+                self.date, self.gid))
+        area_km = glacierpoly.area / 10**6
+        return area_km
+    
+    def getTerminusWidth(self):
+        """Compute box width at points where terminus intersects box, and return average width in km."""
+        if self.referencebox.geom_type == 'MultiLineString':
+            box = ops.linemerge(ops.MultiLineString(self.referencebox))
+        else:
+            box = ops.LineString(self.referencebox)
+        # Split box into two halves
+        half1 = ops.substring(box, 0, 0.5, normalized=True)
+        half2 = ops.substring(box, 0.5, 1, normalized=True)
+        # Get terminus intersections with box halves
+        tx1 = self.terminus.intersection(half1)
+        tx2 = self.terminus.intersection(half2)
+        # Get distance from intersection point to other half
+        tx1_dist = tx1.distance(half2)
+        tx2_dist = tx2.distance(half1)
+        # Get average distance across box, i.e. average terminus width
+        average_width = (tx1_dist + tx2_dist) / 2 / 10**3
+        return average_width
+    
+    def getCenterlineIntersection(self):
+        """Locate intersection between glacier outline and glacier centerline. Split centerline at the intersection and calculate the length of the substring. Return intersection point and substring length."""
+        intersection_point = self.centerline.intersection(self.terminus)
+        return intersection_point
+    
+    def getCenterlineLength(self):
+        """Split centerline at intersection point and calculate the length of the substring."""
+        # TODO: fix error "Splitting GeometryCollection geometry is not supported"
+        split_centerline = ops.split(self.centerline, self.terminus)
+        substring_length = split_centerline[0].length
+        return substring_length
 
 
-def shp2gdf(file, epsg=3574):
-    """Reads a shapefile of glacier data and reprojects to a specified EPSG (default is EPSG:3574 - WGS 84 / North Pole LAEA Atlantic, unit=meters)
-    Result is a geodataframe containing the shapefile data.
-    Also reindex the gdf so that index=GlacierID for direct selection by ID."""
-    gdf = gpd.read_file(file)
-    gdf = gdf.to_crs(epsg=epsg)
-    # TODO: check whether glacier has multiple entries
-    # (then will have multiple indices of that value, which screws up indexing)
-    gdf = gdf.sort_values(by='GlacierID').set_index('GlacierID', drop=False)
-    return gdf
+# def shp2gdf(file, epsg=3574):
+#     """Reads a shapefile of glacier data and reprojects to a specified EPSG (default is EPSG:3574 - WGS 84 / North Pole LAEA Atlantic, unit=meters)
+#     Result is a geodataframe containing the shapefile data.
+#     Also reindex the gdf so that index=GlacierID for direct selection by ID."""
+#     gdf = gpd.read_file(file)
+#     gdf = gdf.to_crs(epsg=epsg)
+#     # TODO: check whether glacier has multiple entries
+#     # (then will have multiple indices of that value, which screws up indexing)
+#     gdf = gdf.sort_values(by='GlacierID').set_index('GlacierID', drop=False)
+#     return gdf
 
 
-def glacierInfo(termini_gdf, box_gdf, gid):
-    """Get terminus and metadata for a given glacier ID in the geodataframe of
-    termini data, as well as the glacier's reference box."""
-    terminus = termini_gdf.loc[gid]
-    box = box_gdf.loc[gid]
-    return terminus, box
-
-
-# def hydrologicalYear(date):
-#     """Determine hydrological year of a given date. Greenland hydrological year
-#     is defined as September 1 through August 31. Returns the starting year of
-#     the hydrological year (aligned with September)."""
-#     date = pd.to_datetime(date)
-#     if pd.notnull(date):
-#         if date.month >= 9:
-#             hydroyear = date.year
-#         elif date.month < 9:
-#             hydroyear = date.year - 1
-#         return hydroyear
-
-
-# def dayOfHydroyear(date):
-#     """Convert date to number of days since start of hydrological year,
-#     defined as September 1. Analogous to day-of-year."""
-#     date = pd.to_datetime(date)
-#     if pd.notnull(date):
-#         hydroyear = hydrologicalYear(date)
-#         start_hydroyear = pd.to_datetime('%s-09-01' % str(hydroyear))
-#         day_of_hydroyear = (date - start_hydroyear).days
-#         return day_of_hydroyear
+# def glacierInfo(termini_gdf, box_gdf, gid):
+#     """Get terminus and metadata for a given glacier ID in the geodataframe of
+#     termini data, as well as the glacier's reference box."""
+#     terminus = termini_gdf.loc[gid]
+#     box = box_gdf.loc[gid]
+#     return terminus, box
