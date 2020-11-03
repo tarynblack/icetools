@@ -2,7 +2,7 @@
 
 import geopandas as gpd
 import pandas as pd
-from shapely.geometry import Point, LineString
+from shapely.geometry import LineString, Point
 
 
 class Glacier:
@@ -11,9 +11,9 @@ class Glacier:
         self.refline = LineString()
         self.refbox = LineString()
         self.centerline = LineString()
-        self.officialname = ""
-        self.greenlandicname = ""
-        self.alternativename = ""
+        self.officialname = ''
+        self.greenlandicname = ''
+        self.alternativename = ''
         self.obsseries = []
         # Observed values
         self.dates = []
@@ -27,9 +27,7 @@ class Glacier:
         self.lengths = []
         self.termareas = []
         # Derived values
-        self.name = self.getGlacierName(self.officialname, \
-                                        self.greenlandicname, \
-                                        self.alternativename)
+        self.name = self.getGlacierName()
         self.missingyears = []
         self.interpyears = []
         self.datayears = []
@@ -49,16 +47,17 @@ class Glacier:
         data_list = pd.Series(data_list)
         return data_list
 
-    def getGlacierName(self, officialname, greenlandicname, alternativename):
+    def getGlacierName(self):
         """Determine which glacier name to use."""
-        if self.officialname:
-            self.name = self.officialname
-        elif self.greenlandicname:
-            self.name = self.officialname
-        elif self.alternativename:
-            self.name = self.alternativename
+        if self.officialname != '':
+            name = self.officialname
+        elif self.greenlandicname != '':
+            name = self.greenlandicname
+        elif self.alternativename != '':
+            name = self.alternativename
         else:
-            self.name = 'Nameless Glacier'
+            name = 'Nameless Glacier'
+        return name
 
     def getMissingYears(self, year_list):
         """Identify years with missing data for an attribute"""
@@ -117,6 +116,7 @@ class Glacier:
         self.termareas = self.extract('termarea')
 
     def updateDerivedValues(self, year_list):
+        self.name = self.getGlacierName()
         self.missingyears = self.getMissingYears(year_list)
         self.interpyears = self.getInterpolatedYears('areas', year_list)
         self.datayears = self.getDataYears('areas', year_list)
@@ -127,6 +127,7 @@ class Glacier:
     def dateFilter(self, attr, startdate, enddate):
         """Filter data to between selected dates."""
         attrs = getattr(self, attr)
+        dates = getattr(self, 'dates')
         if startdate:
             startdate = pd.to_datetime(startdate)
             attrs = attrs.where(self.dates >= startdate).dropna()
@@ -136,6 +137,70 @@ class Glacier:
             attrs = attrs.where(self.dates <= enddate).dropna()
             dates = dates.where(self.dates <= enddate).dropna()
         return attrs, dates
+    
+    def cumulativeChange(self, attr, startdate=None, enddate=None):
+        """Calculate net change of attribute between start and end dates."""
+        attrs, change_dates = self.dateFilter(attr, startdate, enddate)
+        num_observations = len(attrs)
+
+        if num_observations == 0:
+            print('No observations for {} (#{}) between {} and {}.'.format(
+                self.name, self.gid, startdate, enddate))
+            attrs = pd.Series(0.0)
+            change_dates = (startdate, enddate)
+        
+        elif attrs.index[0] != 0:
+            """In order to calculate attr difference in time subsets, there needs to be one attr measurement prior to the beginning of the subset. If there is only one measurement in the subset, then the area change is relative to the previous measurement."""
+            new_index = attrs.index[0] - 1
+            # Get attribute value from one timestep before startdate
+            prev_attr = getattr(self, attr).loc[new_index]
+            attrs.loc[new_index] = prev_attr
+            attrs.sort_index(inplace=True)
+            # Get date from one timestep before startdate
+            prev_date = self.dates.loc[new_index]
+            change_dates.loc[new_index] = prev_date
+            change_dates.sort_index(inplace=True)
+            # change_dates = (dates.iloc[0].date(), dates.iloc[-1].date())
+        
+        # Calculate inter-measurement, cumulative, and net change
+        attr_change = attrs.diff()
+        cumulative_change = attr_change.cumsum()
+        cumulative_change.iloc[0] = 0.0
+
+        return cumulative_change, change_dates, num_observations
+    
+    def rateChange(self, attr, startdate=None, enddate=None):
+        """Calculate rate of change in units per day."""
+        cumulative_change, change_dates, _ = self.cumulativeChange(attr, \
+            startdate, enddate)
+        interobs_change = cumulative_change.diff().values
+        interobs_days = [d.days for d in change_dates.diff()]
+        interobs_change_rate = interobs_change / interobs_days
+        return interobs_change_rate
+    
+    def netRateChange(self, attr, startdate=None, enddate=None):
+        """Calculate rate of change (units per year) of attribute between start and end dates."""
+        cumulative_change, change_dates = self.cumulativeChange(attr, \
+            startdate, enddate)
+        net_change = cumulative_change.iloc[-1]
+        date_first = change_dates[0]
+        date_last = change_dates[-1]
+
+        # Get length of time range in years (SMS=semi-month start frequency (1st and 15th), slightly more precise than just months)
+        years_diff = len(pd.date_range(date_first, date_last, freq='SMS'))/24
+
+        # Average rate of area change per year = net change / years
+        net_rate_change = net_change / years_diff
+        return net_rate_change
+
+    def normChange(self, attr, startdate=None, enddate=None):
+        """Calculate normalized attribute change over a time period. "Normalized" such that 0 is scaled to the smallest value of the attribute in the time period, and 1 is scaled to the largest value, with all other values linearly scaled in between."""
+        cumulative_change, scaled_dates, _ = self.cumulativeChange(
+            attr, startdate, enddate)
+        max_val = cumulative_change.values.max()
+        min_val = cumulative_change.values.min()
+        scaled_attr = (cumulative_change - min_val) / (max_val - min_val)
+        return scaled_attr, scaled_dates
 
 class TerminusObservation:
     def __init__(self, gid, qflag, termination, imageid, sensor, date, geometry):
