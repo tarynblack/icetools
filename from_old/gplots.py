@@ -355,7 +355,7 @@ def annualObservations(fig, all_glaciers, years_list, show_firstyear=True, \
         interp_years = glacier.interpyears
 
         graph1 = plt.scatter([gid]*len(obs_years), obs_years, \
-            c=glacier.dayofhydroyear, cmap='viridis')
+            c=glacier.daysofhydroyear, cmap='viridis')
         graph2 = plt.scatter([gid]*len(interp_years), interp_years, \
             edgecolors='gray', facecolors='none')
 
