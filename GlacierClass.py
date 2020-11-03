@@ -124,7 +124,7 @@ class Glacier:
         self.interplengths = self.interpolateMeasurements('lengths', year_list)
         self.interptermareas = self.interpolateMeasurements('termareas', year_list)
 
-    def dateFilter(self, attr, startdate, enddate):
+    def filterDates(self, attr, startdate, enddate):
         """Filter data to between selected dates."""
         attrs = getattr(self, attr)
         dates = getattr(self, 'dates')
@@ -138,9 +138,21 @@ class Glacier:
             dates = dates.where(self.dates <= enddate).dropna()
         return attrs, dates
     
+    def filterSeasons(self, attr, season=None, startdate=None, enddate=None):
+        """Filter data to specified season and dates."""
+        season = season.upper()
+        attrs, dates = self.filterDates(attr, startdate, enddate)
+        if season is not None:
+            season_dates = dates.where(self.seasons == season).dropna()
+            season_attrs = attrs.where(self.seasons == season).dropna()
+        else:
+            season_dates = dates
+            season_attrs = attrs
+        return season_dates, season_attrs
+
     def cumulativeChange(self, attr, startdate=None, enddate=None):
         """Calculate net change of attribute between start and end dates."""
-        attrs, change_dates = self.dateFilter(attr, startdate, enddate)
+        attrs, change_dates = self.filterSeasons(attr, startdate, enddate)
         num_observations = len(attrs)
 
         if num_observations == 0:
@@ -180,7 +192,7 @@ class Glacier:
     
     def netRateChange(self, attr, startdate=None, enddate=None):
         """Calculate rate of change (units per year) of attribute between start and end dates."""
-        cumulative_change, change_dates = self.cumulativeChange(attr, \
+        cumulative_change, change_dates, _ = self.cumulativeChange(attr, \
             startdate, enddate)
         net_change = cumulative_change.iloc[-1]
         date_first = change_dates[0]
