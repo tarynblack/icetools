@@ -1,4 +1,4 @@
-# Classes and functions for handling intake and management of glacier terminus data.
+# Classes and methods for intake and management of glacier terminus data.
 
 import geopandas as gpd
 import pandas as pd
@@ -36,10 +36,9 @@ class Glacier:
         self.interplengths = []
         self.interptermareas = []
 
-
     # Internal methods
     
-    def sort_by_date(self):
+    def sortDates(self):
         self.obsseries = sorted(self.obsseries, key=lambda k: k.date)
     
     def extract(self, attr):
@@ -98,11 +97,11 @@ class Glacier:
 
     # External methods
     
-    def add_observation(self, observation):
+    def addObservation(self, observation):
         if observation.gid != self.gid:
             print('Cannot add glacier %s observation to glacier %s observation series' % (observation.gid, self.gid))
         self.obsseries.append(observation)
-        self.sort_by_date()
+        self.sortDates()
     
     def updateObservedValues(self):
         self.dates = self.extract('date')
@@ -128,22 +127,26 @@ class Glacier:
     def filterDates(self, attr, startdate, enddate):
         """Filter data to between selected dates."""
         attrs = getattr(self, attr)
-        dates = getattr(self, 'dates')
+        if attr in ['lengths', 'areas', 'termareas']:
+            time = 'dates'
+        elif attr in ['interplengths', 'interpareas', 'interptermareas']:
+            time = 'datayears'
+        dates = getattr(self, time)
         if startdate:
             startdate = pd.to_datetime(startdate)
-            attrs = attrs.where(self.dates >= startdate).dropna()
-            dates = self.dates.where(self.dates >= startdate).dropna()
+            attrs = attrs.where(dates >= startdate).dropna()
+            dates = dates.where(dates >= startdate).dropna()
         if enddate:
             enddate = pd.to_datetime(enddate)
-            attrs = attrs.where(self.dates <= enddate).dropna()
-            dates = dates.where(self.dates <= enddate).dropna()
+            attrs = attrs.where(dates <= enddate).dropna()
+            dates = dates.where(dates <= enddate).dropna()
         return attrs, dates
     
     def filterSeasons(self, attr, season=None, startdate=None, enddate=None):
         """Filter data to specified season and dates."""
-        season = season.upper()
         attrs, dates = self.filterDates(attr, startdate, enddate)
         if season is not None:
+            season = season.upper()
             season_dates = dates.where(self.seasons == season).dropna()
             season_attrs = attrs.where(self.seasons == season).dropna()
         else:
@@ -153,7 +156,7 @@ class Glacier:
 
     def cumulativeChange(self, attr, startdate=None, enddate=None):
         """Calculate net change of attribute between start and end dates."""
-        attrs, change_dates = self.filterSeasons(attr, startdate, enddate)
+        attrs, change_dates = self.filterDates(attr, startdate, enddate)
         num_observations = len(attrs)
 
         if num_observations == 0:
@@ -215,6 +218,7 @@ class Glacier:
         scaled_attr = (cumulative_change - min_val) / (max_val - min_val)
         return scaled_attr, scaled_dates
 
+
 class TerminusObservation:
     def __init__(self, gid, qflag, termination, imageid, sensor, date, \
         terminus, referencebox):
@@ -231,10 +235,10 @@ class TerminusObservation:
         # self.centerline = LineString()
         # Attributes that are determined from initial instance attributes
         self.year = self.date.year
-        self.hydroyear = self.getHydrologicalYear(self.date)
-        self.season = self.getSeason(self.date)
-        self.dayofyear = self.getDayOfYear(self.date, '01-01')
-        self.dayofhydroyear = self.getDayOfYear(self.date, '09-01')
+        self.hydroyear = self.getHydrologicalYear()
+        self.season = self.getSeason()
+        self.dayofyear = self.getDayOfYear('01-01')
+        self.dayofhydroyear = self.getDayOfYear('09-01')
         # Derived values
         self.area = self.getArea()
         self.width = self.getTerminusWidth()
@@ -243,7 +247,7 @@ class TerminusObservation:
         # self.centerlineintersection = self.getCenterlineIntersection()
         # self.centerlinelength = self.getCenterlineLength()
     
-    def getHydrologicalYear(self, date):
+    def getHydrologicalYear(self):
         """Determine hydrological year of a given date. Greenland hydrological year
         is defined as September 1 through August 31. Returns the starting year of 
         the hydrological year (aligned with September)."""
@@ -255,7 +259,7 @@ class TerminusObservation:
                 hydroyear = date.year - 1
             return hydroyear
 
-    def getSeason(self, date):
+    def getSeason(self):
         """Determine Northern Hemisphere season based on date."""
         date = pd.to_datetime(self.date)
         month = date.month
@@ -269,7 +273,7 @@ class TerminusObservation:
             season = 'winter'
         return season
     
-    def getDayOfYear(self, date, startMMDD):
+    def getDayOfYear(self, startMMDD):
         """Convert date to day of year relative to a given start month and day ('MM-DD')."""
         date = pd.to_datetime(self.date)
         if pd.notnull(date):
