@@ -53,19 +53,19 @@ def addDecade(start_date):
     return end_date
 
 
-def filterByDates(glacier, measure, date_start, date_end):
-    measures = glacier.extract(measure)
+# def filterByDates(glacier, measure, date_start, date_end):
+#     measures = glacier.extract(measure)
 
-    # Filter to data between selected dates
-    if date_start:
-        date_start = pd.to_datetime(date_start)
-        measures = measures.where(glacier.dates >= date_start).dropna()
-        dates = dates.where(glacier.dates >= date_start).dropna()
-    if date_end: 
-        date_end = pd.to_datetime(date_end)
-        measures = measures.where(glacier.dates <= date_end).dropna()
-        dates = dates.where(glacier.dates <= date_end).dropna()
-    return measures, dates
+#     # Filter to data between selected dates
+#     if date_start:
+#         date_start = pd.to_datetime(date_start)
+#         measures = measures.where(glacier.dates >= date_start).dropna()
+#         dates = dates.where(glacier.dates >= date_start).dropna()
+#     if date_end: 
+#         date_end = pd.to_datetime(date_end)
+#         measures = measures.where(glacier.dates <= date_end).dropna()
+#         dates = dates.where(glacier.dates <= date_end).dropna()
+#     return measures, dates
 
 
 def netMeasureChange(glacier, measure, date_start=None, date_end=None):
@@ -139,8 +139,7 @@ def firstFullYear(all_glaciers):
     """Identify the first year in which all glaciers have either an observed or an interpolated data point."""
     first_full_year = 0
     for g in all_glaciers:
-        glacier = all_glaciers[g]
-        g_firstyear = glacier.interpareas.dropna().index[0]
+        g_firstyear = all_glaciers[g].datayears[0]
         if g_firstyear > first_full_year:
             first_full_year = g_firstyear
     return first_full_year

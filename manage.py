@@ -14,7 +14,6 @@ class Glacier:
         self.officialname = ""
         self.greenlandicname = ""
         self.alternativename = ""
-        self.unofficialname = ""
         self.obsseries = []
         # Observed values
         self.dates = []
@@ -28,6 +27,9 @@ class Glacier:
         self.lengths = []
         self.termareas = []
         # Derived values
+        self.name = self.getGlacierName(self.officialname, \
+                                        self.greenlandicname, \
+                                        self.alternativename)
         self.missingyears = []
         self.interpyears = []
         self.datayears = []
@@ -36,6 +38,8 @@ class Glacier:
         self.interptermareas = []
 
 
+    # Internal methods
+    
     def sort_by_date(self):
         self.obsseries = sorted(self.obsseries, key=lambda k: k.date)
     
@@ -44,7 +48,18 @@ class Glacier:
         data_list = eval('[obs.{} for obs in self.obsseries]'.format(attr))
         data_list = pd.Series(data_list)
         return data_list
-      
+
+    def getGlacierName(self, officialname, greenlandicname, alternativename):
+        """Determine which glacier name to use."""
+        if self.officialname:
+            self.name = self.officialname
+        elif self.greenlandicname:
+            self.name = self.officialname
+        elif self.alternativename:
+            self.name = self.alternativename
+        else:
+            self.name = 'Nameless Glacier'
+
     def getMissingYears(self, year_list):
         """Identify years with missing data for an attribute"""
         observed_hydroyears = self.extract('hydroyear')
@@ -81,6 +96,8 @@ class Glacier:
         data_years.sort()
         return data_years
 
+    # External methods
+    
     def add_observation(self, observation):
         if observation.gid != self.gid:
             print('Cannot add glacier %s observation to glacier %s observation series' % (observation.gid, self.gid))
@@ -107,6 +124,18 @@ class Glacier:
         self.interplengths = self.interpolateMeasurements('lengths', year_list)
         self.interptermareas = self.interpolateMeasurements('termareas', year_list)
 
+    def dateFilter(self, attr, startdate, enddate):
+        """Filter data to between selected dates."""
+        attrs = getattr(self, attr)
+        if startdate:
+            startdate = pd.to_datetime(startdate)
+            attrs = attrs.where(self.dates >= startdate).dropna()
+            dates = self.dates.where(self.dates >= startdate).dropna()
+        if enddate:
+            enddate = pd.to_datetime(enddate)
+            attrs = attrs.where(self.dates <= enddate).dropna()
+            dates = dates.where(self.dates <= enddate).dropna()
+        return attrs, dates
 
 class TerminusObservation:
     def __init__(self, gid, qflag, termination, imageid, sensor, date, geometry):

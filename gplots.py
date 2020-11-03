@@ -94,16 +94,16 @@ def manageSubplots(fig, subplot_bool, idx):
     return ax
 
 
-def getGlacierName(GlacierClass):
-    if GlacierClass.officialname:
-        name = '{} (#{})'.format(GlacierClass.officialname, GlacierClass.gid)
-    elif GlacierClass.greenlandicname:
-        name = '{} (#{})'.format(GlacierClass.greenlandicname, GlacierClass.gid)
-    elif GlacierClass.alternativename:
-        name = '{} (#{})'.format(GlacierClass.alternativename, GlacierClass.gid)
-    else:
-        name = 'Glacier #{}'.format(GlacierClass.gid)
-    return name
+# def getGlacierName(GlacierClass):
+#     if GlacierClass.officialname:
+#         name = '{} (#{})'.format(GlacierClass.officialname, GlacierClass.gid)
+#     elif GlacierClass.greenlandicname:
+#         name = '{} (#{})'.format(GlacierClass.greenlandicname, GlacierClass.gid)
+#     elif GlacierClass.alternativename:
+#         name = '{} (#{})'.format(GlacierClass.alternativename, GlacierClass.gid)
+#     else:
+#         name = 'Glacier #{}'.format(GlacierClass.gid)
+#     return name
 
 
 def getSeasonMeasures(dates, measures, seasons, seasonstr):
