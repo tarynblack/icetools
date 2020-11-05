@@ -28,8 +28,8 @@ default_cmap = 'viridis'
 def designProperties(ax, graph):
     """Set standardized figure properties"""
     # Line and marker properties
-    linewidth = 3
-    markersize = 8
+    linewidth = 1
+    markersize = 4
     if type(graph) == matplotlib.lines.Line2D:
         graph.set_zorder(5)
         graph.set_linewidth(linewidth)
@@ -90,6 +90,7 @@ def pickTimeLabel(glacier, attr):
         timelabel = 'Hydrological Year'
     return timelabel
 
+
 # Plots
 
 def individualObservations(ax, glaciers, years, show_firstyear=True):
@@ -98,7 +99,7 @@ def individualObservations(ax, glaciers, years, show_firstyear=True):
         
         graph1 = plt.scatter([glacier.gid]*len(glacier.hydroyears), \
             glacier.hydroyears, \
-            c=glacier.daysofhydroyear, cmap=default_cmap)
+            c=glacier.daysofhydroyear, cmap='twilight_shifted')
         graph2 = plt.scatter([glacier.gid]*len(glacier.interpyears), \
             glacier.interpyears, \
             edgecolors='gray', facecolors='none')
