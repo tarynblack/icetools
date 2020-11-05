@@ -167,5 +167,6 @@ dmypy.json
 
 # End of https://www.toptal.com/developers/gitignore/api/visualstudiocode,python,jupyternotebooks
 
-# Ignore ArcMap map files
+# Ignore ArcMap map and lock files
 *.mxd
+*.lock
