@@ -128,18 +128,17 @@ class Glacier:
         """Filter data to between selected dates."""
         attrs = getattr(self, attr)
         if attr in ['lengths', 'areas', 'termareas']:
-            time = 'dates'
+            dates = pd.Series(pd.to_datetime(self.dates))
         elif attr in ['interplengths', 'interpareas', 'interptermareas']:
-            time = 'datayears'
-        dates = getattr(self, time)
-        if startdate:
+            dates = pd.Series(pd.to_datetime(self.datayears, format='%Y'))
+        if startdate is not None:
             startdate = pd.to_datetime(startdate)
-            attrs = attrs.where(dates >= startdate).dropna()
-            dates = dates.where(dates >= startdate).dropna()
-        if enddate:
+            attrs = attrs.iloc[dates[dates >= startdate].index]
+            dates = dates.iloc[dates[dates >= startdate].index]
+        if enddate is not None:
             enddate = pd.to_datetime(enddate)
-            attrs = attrs.where(dates <= enddate).dropna()
-            dates = dates.where(dates <= enddate).dropna()
+            attrs = attrs.iloc[dates[dates <= startdate].index]
+            dates = dates.iloc[dates[dates <= startdate].index]
         return attrs, dates
     
     def filterSeasons(self, attr, season=None, startdate=None, enddate=None):
@@ -165,16 +164,21 @@ class Glacier:
             attrs = pd.Series(0.0)
             change_dates = (startdate, enddate)
         
-        elif attrs.index[0] != 0:
+        elif change_dates.index[0] != 0:
             """In order to calculate attr difference in time subsets, there needs to be one attr measurement prior to the beginning of the subset. If there is only one measurement in the subset, then the area change is relative to the previous measurement."""
-            new_index = attrs.index[0] - 1
+            new_attr_index = attrs.index[0] - 1
+            new_date_index = change_dates.index[0] - 1
             # Get attribute value from one timestep before startdate
-            prev_attr = getattr(self, attr).loc[new_index]
-            attrs.loc[new_index] = prev_attr
+            prev_attr = getattr(self, attr).loc[new_attr_index]
+            attrs.loc[new_attr_index] = prev_attr
             attrs.sort_index(inplace=True)
             # Get date from one timestep before startdate
-            prev_date = self.dates.loc[new_index]
-            change_dates.loc[new_index] = prev_date
+            if attr in ['lengths', 'areas', 'termareas']:
+                dates = pd.Series(pd.to_datetime(self.dates))
+            elif attr in ['interplengths', 'interpareas', 'interptermareas']:
+                dates = pd.Series(pd.to_datetime(self.datayears, format='%Y'))
+            prev_date = dates.iloc[new_date_index]
+            change_dates.loc[new_date_index] = prev_date
             change_dates.sort_index(inplace=True)
             # change_dates = (dates.iloc[0].date(), dates.iloc[-1].date())
         
