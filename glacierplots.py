@@ -24,6 +24,8 @@ default_color = 'mediumblue'
 default_cmap = 'viridis'
 
 
+
+
 # Plot design management
 def designProperties(ax, graph):
     """Set standardized figure properties"""
@@ -36,10 +38,10 @@ def designProperties(ax, graph):
         graph.set_markersize(markersize)
     
     # Text properties
-    titlesize = 24
-    labelsize = 20
-    ticklabelsize = 16
-    legendsize = 16
+    titlesize = 14
+    labelsize = 12
+    ticklabelsize = 10
+    legendsize = 10
     ax.axes.title.set_fontsize(titlesize)
     ax.xaxis.label.set_fontsize(labelsize)
     ax.yaxis.label.set_fontsize(labelsize)
@@ -51,6 +53,11 @@ def designProperties(ax, graph):
     ax.grid(color='lightgray')
     ax.axhline(linewidth=1.0, color='black')
     ax.set_axisbelow(True)
+
+def getGlacierColors(GIDS):
+    glacier_cmap = matplotlib.cm.get_cmap('rainbow', len(GIDS))
+    glacier_colors = {key: glacier_cmap(key) for key in sorted(dict.fromkeys(GIDS))}
+    return glacier_colors
 
 def checkAttribute(attr):
     attribute_types = ['lengths',
@@ -142,6 +149,7 @@ def cumulativeChange(ax, glacier, attr, startdate=None, enddate=None):
     ax.set_xlabel(pickTimeLabel(glacier, attr))
     ax.set_ylabel('Cumulative {} Change ({})'.format(
         attr_names[attr], attr_units[attr]))
+    plt.xlim(left=cumulative_dates[0].year-1, right=cumulative_dates[-1].year+1)
     designProperties(ax, graph)
 
 
@@ -156,6 +164,7 @@ def differentialChange(ax, glacier, attr, startdate=None, enddate=None):
         glacier.name, attr_names[attr]))
     ax.set_xlabel(pickTimeLabel(glacier, attr))
     ax.set_ylabel('{} Change ({})'.format(attr_names[attr], attr_units[attr]))
+    plt.xlim(left=dates[0].year-1, right=dates[-1].year+1)
     designProperties(ax, graph)
 
 
@@ -163,11 +172,11 @@ def decadalChange(ax, glacier, attr, startdecades):
     checkAttribute(attr)
 
     startdecades = pd.to_datetime(startdecades)
-    decadal_net_change = pd.Series(dtype='float64')
+    net_decadal_change = pd.Series(dtype='float64')
     decade_labels = []
     bar_annotations = []
     for startyear in startdecades:
-        endyear = gm.addDecade(startyear)
+        endyear = gmt.addDecade(startyear)
         cumul_decadal_change, _, num_obsv = glacier.cumulativeChange(
             attr, startyear, endyear)
         net_decadal_change.loc[midyear] = cumul_decadal_change.iloc[-1]
@@ -177,7 +186,7 @@ def decadalChange(ax, glacier, attr, startdecades):
     
     rects = ax.bar(net_decadal_change.index.values, net_decadal_change.values,\
         width=5, color=default_color)
-    annotate_bars(ax, bar_annotations, \
+    annotateBars(ax, bar_annotations, \
         net_decadal_change.index.values, net_decadal_change.values)
     ax.set_title('{}: Decadal {} Change'.format(glacier.name, attr_names[attr]))
     ax.set_xlabel('Decade')
@@ -195,20 +204,26 @@ def decadalChange(ax, glacier, attr, startdecades):
     ax.grid(axis='x')
 
 
-def changeSummary(ax, glaciers, attr, startdate=None, enddate=None):
+def changeSummary(ax, glaciers, attr, glacier_colors, startdate=None, enddate=None):
     checkAttribute(attr)
 
     for g in glaciers:
         glacier = glaciers[g]
         cumulative_attr, cumulative_dates, _ = glacier.cumulativeChange(
             attr, startdate, enddate)
-        graph, = ax.plot(cumulative_dates, cumulative_attr, color=default_color)
+        graph, = ax.plot(cumulative_dates, cumulative_attr, color=default_color, alpha=0.3)
+        if len(glaciers) < 8:
+            graph.set_color(glacier_colors[glacier.gid])
+            graph.set_alpha(0.9)
+            graph.set_label(glacier.name)
         designProperties(ax, graph)
     
     ax.set_title('Glacier {} Changes'.format(attr_names[attr]))
     ax.set_xlabel(pickTimeLabel(glacier, attr))
     ax.set_ylabel('Cumulative {} Change ({})'.format(
         attr_names[attr], attr_units[attr]))
+    if len(glaciers) < 8:
+        ax.legend()
     designProperties(ax, graph)
 
 
@@ -219,7 +234,7 @@ def changeSummaryNorm(ax, glaciers, attr, startdate=None, enddate=None):
         glacier = glaciers[g]
         scaled_measure, scaled_dates = glacier.normChange(
             attr, startdate, enddate)
-        graph, = ax.plot(scaled_dates, scaled_measure, color=default_color)
+        graph, = ax.plot(scaled_dates, scaled_measure, color='dimgray', alpha=0.3)
         designProperties(ax, graph)
     
     ax.set_title('Normalized Glacier {} Changes'.format(attr_names[attr]))
