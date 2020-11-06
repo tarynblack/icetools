@@ -49,14 +49,16 @@ class Glacier:
 
     def getGlacierName(self):
         """Determine which glacier name to use."""
-        if self.officialname != '':
+        if self.officialname.strip() and self.officialname == self.greenlandicname:
+            name = '{} ({})'.format(self.officialname, self.alternativename)
+        elif self.officialname.strip():
             name = self.officialname
-        elif self.greenlandicname != '':
+        elif self.greenlandicname.strip():
             name = self.greenlandicname
-        elif self.alternativename != '':
+        elif self.alternativename.strip():
             name = self.alternativename
         else:
-            name = 'Nameless Glacier'
+            name = 'Glacier #{}'.format(self.gid)
         return name
 
     def getMissingYears(self, year_list):
