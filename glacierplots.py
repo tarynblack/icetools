@@ -149,7 +149,9 @@ def cumulativeChange(ax, glacier, attr, startdate=None, enddate=None):
     ax.set_xlabel(pickTimeLabel(glacier, attr))
     ax.set_ylabel('Cumulative {} Change ({})'.format(
         attr_names[attr], attr_units[attr]))
-    plt.xlim(left=cumulative_dates[0].year-1, right=cumulative_dates[-1].year+1)
+    xleft = pd.to_datetime(cumulative_dates.iloc[0].year-1, format='%Y')
+    xright = pd.to_datetime(cumulative_dates.iloc[-1].year+1, format='%Y')
+    plt.xlim(left=xleft, right=xright)
     designProperties(ax, graph)
 
 
@@ -164,7 +166,9 @@ def differentialChange(ax, glacier, attr, startdate=None, enddate=None):
         glacier.name, attr_names[attr]))
     ax.set_xlabel(pickTimeLabel(glacier, attr))
     ax.set_ylabel('{} Change ({})'.format(attr_names[attr], attr_units[attr]))
-    plt.xlim(left=dates[0].year-1, right=dates[-1].year+1)
+    xleft = pd.to_datetime(dates.iloc[0].year-1, format='%Y')
+    xright = pd.to_datetime(dates.iloc[-1].year+1, format='%Y')
+    plt.xlim(left=xleft, right=xright)
     designProperties(ax, graph)
 
 
@@ -216,12 +220,18 @@ def changeSummary(ax, glaciers, attr, glacier_colors, startdate=None, enddate=No
             graph.set_color(glacier_colors[glacier.gid])
             graph.set_alpha(0.9)
             graph.set_label(glacier.name)
+        # xleft = pd.to_datetime(cumulative_dates.iloc[0].year-1, format='%Y')
+        # xright = pd.to_datetime(cumulative_dates.iloc[-1].year+1, format='%Y')
+        # plt.xlim(left=xleft, right=xright)
         designProperties(ax, graph)
     
     ax.set_title('Glacier {} Changes'.format(attr_names[attr]))
     ax.set_xlabel(pickTimeLabel(glacier, attr))
     ax.set_ylabel('Cumulative {} Change ({})'.format(
         attr_names[attr], attr_units[attr]))
+    xleft = pd.to_datetime(cumulative_dates.iloc[0].year-1, format='%Y')
+    xright = pd.to_datetime(cumulative_dates.iloc[-1].year+1, format='%Y')
+    plt.xlim(left=xleft, right=xright)
     if len(glaciers) < 8:
         ax.legend()
     designProperties(ax, graph)
@@ -241,6 +251,9 @@ def changeSummaryNorm(ax, glaciers, attr, startdate=None, enddate=None):
     ax.set_xlabel(pickTimeLabel(glacier, attr))
     ax.set_ylabel('Normalized Cumulative {} Change'.format(
         attr_names[attr]))
+    xleft = pd.to_datetime(scaled_dates.iloc[0].year-1, format='%Y')
+    xright = pd.to_datetime(scaled_dates.iloc[-1].year+2, format='%Y')
+    plt.xlim(left=xleft, right=xright)
     plt.ylim(-0.01, 1.01)
     designProperties(ax, graph)
 
