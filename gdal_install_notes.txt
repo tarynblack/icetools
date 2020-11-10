@@ -1,0 +1,97 @@
+# GDAL Installation Notes
+Taryn E. Black, 4 November 2014  
+System info: Linux 64-bit, Ubuntu 20.04, running on WSL2 on Windows 10
+
+## The Problem
+Running a Python script that modifies an ESRI File Geodatabase. With standard geopandas, you can read an FGDB but cannot write to one. 
+
+## Getting the Driver
+In order to write to an ESRI FGDB, we need GDAL with a specific ESRI driver to allow FGDB write. For further information, see [the GDAL FileGDB driver page](https://gdal.org/drivers/vector/filegdb.html#vector-filegdb) (note that the driver link on this site is outdated).
+
+1. Download the .tar.gz file for the _most recent_ version of the ESRI GDAL API driver from [ESRI's GitHub](https://github.com/Esri/file-geodatabase-api).
+
+2. Unzip the tar (replace filename as appropriate):  
+   ```tar -xvzf FileGDB_API_1_5_1-64gcc51.tar.gz```
+
+3. Move the unzipped directory to a permanent location, such as:  
+   ```mv FileGDB_API-64gcc51 /usr/local/src```
+
+## Configuration
+Now we have a bunch of finicky configuration to do to get things running. Thanks to stackoverflow and GitHub (especially [this pull request](https://github.com/OSGeo/gdal/pull/2974/files)) for helping us figure this out.
+
+4. Add LD_LIBRARY_PATH to your bash_aliases:  
+   ```
+   vi ~/.bash_aliases
+   LD_LIBRARY_PATH=/usr/local/src/FileGDB_API-64gcc51/lib:/usr/local/lib:$LD_LIBRARY_PATH
+   export LD_LIBRARY_PATH
+   ```
+
+5. Check that step 4 worked (_i.e._ that FileGDB 1.5.1 works):  
+   ```
+   cd /usr/local/src/FileGDB_API-64gcc51/samples
+   make
+   cd bin/
+   ./Querying
+   ```  
+   If this returns something, then FileGDB 1.5.1 works!
+
+6. Not sure why we need to do this, but it finally got things working:  
+   ```
+   sudo rm -rf /usr/local/src/FileGDB_API-64gcc51/lib/libstdc++*
+   sudo cp /usr/local/src/FileGDB_API-64gcc51/lib/* /usr/lib
+   sudo cp /usr/local/src/FileGDB_API-64gcc51/include/* /usr/include
+   ```
+
+## Get GDAL itself
+We're ready to download and compile GDAL with the ESRI FGDB driver!
+
+7. First, you'll want to make sure your gcc compiler version is greater than 5. You can check the version at the bottom of `man gcc`.
+
+8. Download the current version of GDAL:  
+   ```
+   cd ~
+   curl -O http://download.osgeo.org/gdal/CURRENT/<filename>.tar.gz
+   tar -xvzf <filename>.tar.gz
+   cd <unpacked dir name>
+   ```
+
+9. Go to the GDAL directory:  
+   ```cd ~/gdal-<version>```
+
+10. Configure first. Change with/without to suit your needs. Note that we use `--without-python` even though we're using Python - using `--with-python` doesn't always work, and success is more likely if you leave it out here and install it later with pip. In the command below, `--prefix` is where GDAL will be compiled to, and `--with-fgdb` is wherever you put the directory in step 3.  
+   ```
+   sudo ./configure --prefix=/usr/local/ --with-fgdb=/usr/local/src/FileGDB_API-64gcc51 --with-libz --with-crypto --with-geos --with-sqlite3 --with-curl --with-proj --with-png --with-jpeg --with-libtiff --with-liblzma --without-jpeg12 --with-netcdf --with-hdf5 --without-hdf4 --without-python --without-idb --without-sde --without-perl --with-hide-internal-symbols --without-libtool
+   ```  
+   Side note, this initially broke on PROJ6 for us. If this happens, make sure proj is installed by running `proj`. If nothing happens, install it:  
+   ```sudo apt install proj-bin libproj-dev```
+
+
+11. If that works, move on to compile:  
+   ```
+   make  # This will take a while
+   sudo make install
+   ```
+
+12. To check that it worked, run `ogrinfo --formats` and look for ESRI FileGDB with (rw+).
+
+## Setting up with Python and Fiona
+We're almost there!
+
+13. Install GDAL for Python:  
+   ```pip3 install gdal==<GDAL version that you installed>```
+
+14. Make sure Fiona knows where to find GDAL, _i.e._ where we put the FileGDB... directory (you may need to uninstall Fiona, geopandas, and shapely first). We also need to install fiona from source, not wheel, in order for it to use the drivers. Basically, we need a clean install. Thanks to [Brendan Ward](https://github.com/brendan-ward/pyogrio/) for the `--no-binary` trick.
+   ```
+   pip3 uninstall fiona geopandas shapely
+   export CPLUS_INCLUDE_PATH=/usr/local/include
+   export C_INCLUDE_PATH=/usr/local/include
+   pip3 install fiona --no-binary fiona
+   pip3 install geopandas shapely
+   ```
+
+14. Finally, for any script relying on GDAL with FileGDB, include the lines:  
+   ```
+   import geopandas as gpd
+   gpd.io.file.fiona.drvsupport.supported_drivers['FileGDB'] = 'rw+'
+   ```
+
