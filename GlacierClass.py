@@ -238,7 +238,7 @@ class TerminusObservation:
         self.terminus = terminus
         self.referencebox = referencebox
         # Optional additional attributes
-        # self.centerline = LineString()
+        self.centerline = LineString()
         # Attributes that are determined from initial instance attributes
         self.year = self.date.year
         self.hydroyear = self.getHydrologicalYear()
