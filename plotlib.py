@@ -3,7 +3,7 @@
 import matplotlib
 import matplotlib.pyplot as plt
 import pandas as pd
-import glaciermetrics as gmt
+import metrics as met
 
 # Design parameters
 attr_units = {'lengths'         : 'km',
@@ -115,7 +115,7 @@ def individualObservations(ax, glaciers, years, show_firstyear=True):
         designProperties(ax, graph2)
     
     if show_firstyear:
-        first_full_year = gmt.firstFullYear(glaciers)
+        first_full_year = met.firstFullYear(glaciers)
         ax.axhline(y=first_full_year, linewidth=3.0, color='red', zorder=0.5)
     
     ax.set_title('Observation Time Series')
@@ -180,7 +180,7 @@ def decadalChange(ax, glacier, attr, startdecades):
     decade_labels = []
     bar_annotations = []
     for startyear in startdecades:
-        endyear = gmt.addDecade(startyear)
+        endyear = met.addDecade(startyear)
         cumul_decadal_change, _, num_obsv = glacier.cumulativeChange(
             attr, startyear, endyear)
         net_decadal_change.loc[midyear] = cumul_decadal_change.iloc[-1]
