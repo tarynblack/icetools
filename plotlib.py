@@ -3,7 +3,7 @@
 import matplotlib
 import matplotlib.pyplot as plt
 import pandas as pd
-import metrics as met
+from icetools import metrics as met
 
 # Design parameters
 attr_units = {'lengths'         : 'km',
@@ -22,8 +22,6 @@ attr_names = {'lengths'         : 'Length',
 
 default_color = 'mediumblue'
 default_cmap = 'viridis'
-
-
 
 
 # Plot design management
