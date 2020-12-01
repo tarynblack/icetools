@@ -312,10 +312,13 @@ def downloadScene(bands, pid, epsg, base_dir, gcp_path, dest_dir):
     for band in bands:
         print('--- Band {}:'.format(band))
         band_file = '{}_B{}.TIF'.format(pid, band)
-        command = 'gsutil cp {}{} {}/temp/'.format(
-            gcp_path, band_file, base_dir)
-        run(command, shell=True)
-        reprojectScene(epsg, base_dir, band_file, dest_dir)
+        if not os.path.isfile(os.path.join(dest_dir, band_file)):
+            command = 'gsutil cp {}{} {}/temp/'.format(
+                gcp_path, band_file, base_dir)
+            run(command, shell=True)
+            reprojectScene(epsg, base_dir, band_file, dest_dir)
+        else:
+            print('Band {} already downloaded.'.format(band))
     command = 'gsutil cp {}{}_MTL.txt {} ; \
         rm {}/temp/*'.format(gcp_path, pid, dest_dir, base_dir)
     run(command, shell=True)
@@ -339,7 +342,7 @@ def createColorComposite(base_dir, pid, bands):
     
     red, green, blue, pan = getBandFilePaths(base_dir, pid, bands)
     
-    if len(bands) == 4:
+    if len(bands) == 4 and os.path.isfile(os.path.join(base_dir, pid, pan)):
         composite_TIF = '{}/{}_pan-composite.TIF'.format(base_dir, pid)
         print('Panchromatic band present. \
             \nCompositing bands {}, {}, {}; pansharpening band {}...'.format(
