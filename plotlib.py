@@ -4,6 +4,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import pandas as pd
 from icetools import metrics as met
+import ruptures as rpt
 
 # Design parameters
 attr_units = {'lengths'         : 'km',
@@ -98,7 +99,7 @@ def pickTimeLabel(glacier, attr):
 
 # Plots
 
-def individualObservations(ax, glaciers, years, show_firstyear=True):
+def annualObservations(ax, glaciers, years, show_firstyear=True):
     for g in glaciers:
         glacier = glaciers[g]
         
@@ -134,6 +135,34 @@ def individualObservations(ax, glaciers, years, show_firstyear=True):
     designProperties(ax, graph1)
     designProperties(ax, graph2)
 
+
+def dateObservations(ax, glaciers, gids, years, xax='glacier'):
+    count = 0
+    for g in glaciers:
+        glacier = glaciers[g]
+        if xax == 'glacier':
+            graph = plt.scatter([count]*len(glacier.dates), glacier.dates, c=default_color)
+        elif xax == 'date':
+            graph = plt.scatter(glacier.dates, [count]*len(glacier.dates), c=default_color)
+        designProperties(ax, graph)
+        count = count+1
+
+    ax.set_title('Observation Time Series')
+    if xax == 'glacier':
+        ax.set_xlabel('Glacier ID')
+        ax.set_ylabel('Date')
+        plt.xticks(range(len(gids)), gids, rotation=90)
+        plt.ylim(bottom=pd.to_datetime(years[0], format='%Y'), \
+                top=pd.to_datetime(years[-1]+1, format='%Y'))
+    elif xax == 'date':
+        ax.set_xlabel('Date')
+        ax.set_ylabel('Glacier ID')
+        plt.yticks(range(len(gids)), gids)
+        plt.xlim(left=pd.to_datetime(years[0], format='%Y'), \
+                 right=pd.to_datetime(years[-1]+1, format='%Y'))
+
+    designProperties(ax, graph)
+        
 
 def cumulativeChange(ax, glacier, attr, startdate=None, enddate=None):
     checkAttribute(attr)
@@ -235,23 +264,58 @@ def changeSummary(ax, glaciers, attr, glacier_colors, startdate=None, enddate=No
     designProperties(ax, graph)
 
 
-def changeSummaryNorm(ax, glaciers, attr, startdate=None, enddate=None):
+def changeSummaryNorm(ax, glaciers, attr, startdate=None, enddate=None, showmean=True):
     checkAttribute(attr)
 
     for g in glaciers:
         glacier = glaciers[g]
-        scaled_measure, scaled_dates = glacier.normChange(
+        scaled_attr, scaled_dates = glacier.normChange(
             attr, startdate, enddate)
-        graph, = ax.plot(scaled_dates, scaled_measure, color='dimgray', alpha=0.3)
+        graph, = ax.plot(scaled_dates, scaled_attr, color='dimgray', alpha=0.3)
         designProperties(ax, graph)
+    if showmean == True:
+        norm_mean, norm_std = met.normChangeStats(glaciers, attr, startdate=startdate, enddate=enddate)
+        norm_dates = pd.to_datetime(norm_mean.index, format='%Y')
+        ax.plot(norm_dates, norm_mean.values, label='mean +/- std', 
+            color=default_color, linewidth=3, zorder=10)
+        ax.fill_between(norm_dates, 
+            norm_mean.values+norm_std.values, norm_mean.values-norm_std.values, 
+            color=default_color, alpha=0.2, zorder=10)  
     
     ax.set_title('Normalized Glacier {} Changes'.format(attr_names[attr]))
     ax.set_xlabel(pickTimeLabel(glacier, attr))
     ax.set_ylabel('Normalized Cumulative {} Change'.format(
         attr_names[attr]))
     xleft = pd.to_datetime(scaled_dates.iloc[0].year-1, format='%Y')
-    xright = pd.to_datetime(scaled_dates.iloc[-1].year+2, format='%Y')
+    xright = pd.to_datetime(scaled_dates.iloc[-1].year+1, format='%Y')
     plt.xlim(left=xleft, right=xright)
-    plt.ylim(-0.01, 1.01)
+    # plt.ylim(-0.01, 1.01)
     designProperties(ax, graph)
+
+
+def showChangePoints(ax, glacier, attr, startdate=None, enddate=None, n_breakpoints=1, method='window'):
+    """Plot breakpoints using built-in methods in ruptures package."""
+    _, signal, breakpoints = met.changePointDetection(glacier, attr, startdate, enddate, n_breakpoints, method)
+    rpt.show.display(signal, breakpoints, figsize=(6, 5))
+    plt.show()
+
+
+def changePointHistogram(ax, glaciers, attr, startdate=None, enddate=None, n_breakpoints=1, method='window', model='l1', wwidth=5, year_bins=None):
+    """Plot histogram of breakpoint years for glacier population."""
+    checkAttribute(attr)
+    population_breakpoint_years = []
+    for g in glaciers:
+        glacier = glaciers[g]
+        breakpoint_dates, _, _ = met.changePointDetection(glacier, attr, startdate=startdate, enddate=enddate, n_breakpoints=n_breakpoints, method=method, model=model, wwidth=wwidth)
+        breakpoint_years = [d.year for d in breakpoint_dates]
+        # graph = ax.scatter(breakpoint_years, [g]*len(breakpoint_years), color=default_color)
+        # designProperties(ax, graph)
+        population_breakpoint_years.extend(breakpoint_years)
+    graph = ax.hist(population_breakpoint_years, bins=year_bins, rwidth=0.8, color=default_color)
+    
+    ax.set_title('Glacier {} Change Points'.format(attr_names[attr]))
+    ax.set_xlabel('Year')
+    ax.set_ylabel('Glacier ID')#'Count')
+    designProperties(ax, graph)
+        
 

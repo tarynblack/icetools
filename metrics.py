@@ -4,6 +4,7 @@
 
 import pandas as pd
 from shapely import ops
+import ruptures as rpt
 
 def addDecade(start_date):
     start_date = pd.to_datetime(start_date).date()
@@ -38,6 +39,7 @@ def firstFullYear(all_glaciers):
 
 
 def finalNetChange(glaciers, attr, startdate=None):
+    """Calculate final (cumulative) net change in attribute (e.g. area)."""
     final_net_change = pd.Series(index=glaciers.keys())
     for g in glaciers:
         glacier = glaciers[g]
@@ -131,4 +133,46 @@ def filterGlaciers(glaciers, ids, idtype='remove'):
         remove_ids = glacier_ids - ids
     [glacier_dict_copy.pop(id) for id in remove_ids]
     return glacier_dict_copy
+
+
+def normChangeStats(glaciers, attr, startdate=None, enddate=None):
+    """Calculate population mean value of normalized attribute change."""
+    glacier_norms = pd.DataFrame(columns=glaciers[list(glaciers.keys())[0]].datayears,
+                          index=list(glaciers.keys()))
+    for g in glaciers:
+        scaled_attr, _ = glaciers[g].normChange(attr, startdate=startdate, enddate=enddate)
+        data = scaled_attr.__getattr__(scaled_attr.columns[0])
+        glacier_norms.loc[g] = data
+    
+    norm_mean = glacier_norms.mean()
+    norm_std = glacier_norms.std()
+    
+    return norm_mean, norm_std
+
+
+def changePointDetection(glacier, attr, startdate=None, enddate=None, \
+    n_breakpoints=1, method='window', model='l1', wwidth=5):
+    """Use ruptures package to identify change points in glacier time series. Acceptable methods are 'window' (sliding window), 'binseg' (binary segmentation), and bottomup (bottom-up). See https://centre-borelli.github.io/ruptures-docs/user-guide for further information."""
+    attrs, dates = glacier.filterDates(attr, startdate, enddate)
+    signal = attrs.values
+    sigma = signal.std()
+    n = len(signal)
+    if method == 'window':
+        algo = rpt.Window(width=wwidth, model=model).fit(signal)
+    elif method == 'binseg':
+        algo = rpt.Binseg(model=model).fit(signal)
+    elif method == 'bottomup':
+        algo = rpt.BottomUp(model=model).fit(signal)
+    breakpoints = algo.predict(n_bkps=n_breakpoints)
+    # remove breakpoints at beginning/end of time series
+    if dates.index[0]-1 in breakpoints:
+        breakpoints.remove(dates.index[0]-1)
+    if dates.index[-1] in breakpoints:
+        breakpoints.remove(dates.index[-1])
+    breakpoint_dates = dates[breakpoints]
+    return breakpoint_dates, signal, breakpoints
+
+
+
+
 
